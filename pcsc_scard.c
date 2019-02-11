@@ -329,7 +329,7 @@ int main1(void)  {
     return 0;
 }
 
-int scard_pcsc_apdu(scard *s,char *apdu, int len) { // flash apdu?
+int scard_pcsc_apdu(scard *s,char *apdu, int len,int expected) { // flash apdu?
   LONG err;
   SCARD_IO_REQUEST pioSendPci = *SCARD_PCI_T0;
 
@@ -355,7 +355,7 @@ int scard_pcsc_open(scard *s,char *name)  {
 
     cchReaders = 0;
     err = SCardListReaders(s->hContext, NULL, name, &cchReaders);
-    if (err != SCARD_S_SUCCESS) return scard_errorf(s,"SCardListReaders");
+    if (err != SCARD_S_SUCCESS) return scard_errorf(s,"reader not found: SCardListReaders failed");
 
     mszReaders = calloc(cchReaders, sizeof(char));
     if (!mszReaders) return scard_errorf(s,"calloc failed");
@@ -373,7 +373,7 @@ int scard_pcsc_open(scard *s,char *name)  {
         SCARD_PROTOCOL_T0 // |         SCARD_PROTOCOL_T1
         , &s->hCard, &dwActiveProtocol);
 
-    if (err != SCARD_S_SUCCESS) return scard_errorf(s,"SCardConnect");
+    if (err != SCARD_S_SUCCESS) return scard_errorf(s,"no card, failed SCardConnect");
 
 s->apdu = scard_pcsc_apdu; // set a handler
 printf("Connected OK Card=%x!\n",s->hCard);

@@ -15,10 +15,12 @@
 					<Add option="-O2" />
 					<Add option="-I ../vos" />
 					<Add option="-funsigned-char" />
+					<Add option="-I /usr/include/PCSC" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
 					<Add library="pthread" />
+					<Add library="pcsclite" />
 				</Linker>
 			</Target>
 		</Build>
@@ -31,9 +33,16 @@
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="pcsc_scard.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="phoenix_scard.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="scard.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="scard.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />

@@ -11,7 +11,8 @@ void *f ;
 char buf[256];
 char atr[200];
 
-int logLevel = 1;
+//int logLevel = 1;
+extern int logLevel;
 
 // online atr decoder: https://smartcard-atr.appspot.com/parse?ATR=3B9E943B9E94801FC78031E073FE211B66D0016BE80C008C
 
@@ -113,7 +114,7 @@ return 1; // ALL OK
 
 
 
-int sc_read(scard *s,int len,int ta) { // collect len bytes in timeout
+int sc_read2(scard *s,int len,int ta) { // collect len bytes in timeout
 s->blen = 0;
 while( (!s->eof) && (len>0) && (ta>0) ) {
      int l = prt_peek(s->f,s->buf+s->blen,len+1);
@@ -330,16 +331,25 @@ readimsi() {
 
 }
 
-int speed = 19200; /* 19200 close to USB, or 9600 far from USB */
+int speed = 9600; /* 19200 close to USB, or 9600 far from USB */
 
 int main2() {
  char APDU_Cmd1[] = { 0xA0, 0xA4, 0x00, 0x00, 0x02, 0x3F, 0x00 };
- scard *s = &s;
-if (! scard_pcsc_open(s,0)) { // open any
-  printf("error_open %s\n",s->err);
+ scard *s = &sc;
+//if (! scard_pcsc_open(s,0)) { // open any card reader
+if (!scard_phoenix_open(s,"/dev/ttyUSB0")) { //
+  printf("error while scard_open: %s\n",s->err);
   return 0;
   }
-printf("PCSC opened ok\n");
+/*
+printf("card  opened ok alen=%d\n",s->alen);
+hexdump("atr",s->atr,s->alen);
+print_atr(s->atr,s->alen);
+printf("Normal Done\n");
+*/
+//return 0;
+
+
 
 if (!scard_iccid(s)) { //}, APDU_Cmd1, sizeof(APDU_Cmd1))) {
   printf("iccid failed %s\n",s->err);
@@ -347,7 +357,15 @@ if (!scard_iccid(s)) { //}, APDU_Cmd1, sizeof(APDU_Cmd1))) {
   }
 hexdump("ICCID OK",s->buf,s->blen); // print results
 
+if (!scard_imsi(s)) { //}, APDU_Cmd1, sizeof(APDU_Cmd1))) {
+  printf("imsi failed %s\n",s->err);
+  return 0;
+  }
+hexdump("IMSI OK",s->buf,s->blen); // print results
 
+
+
+prt_close( s->f);
 return 1;
 }
 
@@ -371,8 +389,8 @@ return main2();
     print_atr(atr,l);
      //read_iccid();
     //logLevel=10 ; read_me();
-    stress_test();
-    //szapdu("A0 A4 00 00 02"); // just select
+    //stress_test();
+    szapdu("A0 A4 00 00 02"); // just select
     while (1) {
        int l = prt_peek( f, buf, sizeof(buf) );
        if (l < 0 ) break;
