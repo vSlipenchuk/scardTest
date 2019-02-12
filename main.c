@@ -12,7 +12,7 @@ char buf[256];
 char atr[200];
 
 //int logLevel = 1;
-extern int logLevel;
+//extern int logLevel;
 
 // online atr decoder: https://smartcard-atr.appspot.com/parse?ATR=3B9E943B9E94801FC78031E073FE211B66D0016BE80C008C
 
@@ -125,7 +125,7 @@ while( (!s->eof) && (len>0) && (ta>0) ) {
    if ( l<0 ) { s->eof=1; return -1;} // error
 
   // memcpy(s->buf+s->blen,buf,len);
-   if (logLevel>5) hexdump("PEEK",s->buf+s->blen,l);
+   if (s->logLevel>5) hexdump("PEEK",s->buf+s->blen,l);
    s->blen+=l; len-=l; // and again
    }
 return len == 0 ; // all read
@@ -133,7 +133,8 @@ return len == 0 ; // all read
 
 
 int apdu_send2(char *apdu, int len,int expected) {
-if (logLevel>5) hexdump("APDU sending:",apdu,len);
+//if (logLevel>5)
+hexdump("APDU sending:",apdu,len);
 //int c = write_echo(f,apdu,2);
 //printf("write_echo code=%d\n",c);
 
@@ -147,7 +148,7 @@ if (sc.blen!=5 || (0!=memcmp(sc.buf,apdu,5))) {
   printf("Fail eat echo code=%d!\n",5);
   return 0;
   }
-if(logLevel>3) printf("==>now - wait CLA %x\n",cla);
+//if(logLevel>3) printf("==>now - wait CLA %x\n",cla);
 sc_read(&sc,1,1000); // wait result exec
 //msleep(200);
 
@@ -159,7 +160,7 @@ sc_read(&sc,1,1000); // wait result exec
 
 //if (0) { // ignore code?
 if ( (sc.blen == 1) && (sc.buf[0]==cla))  {
-   if (logLevel>3) printf("command OK, send a rest %d!\n",len-5);
+//   if (logLevel>3) printf("command OK, send a rest %d!\n",len-5);
   } else {
   //printf("%d or %d? %x or %x?\n", (sc.blen == 6) ,(sc.buf[5]==cla),sc.buf[5],cla);
   printf("EXPECT len=%d and cla=%d!!!\n",1,cla);
@@ -197,12 +198,12 @@ if ( (sc.blen!=(len-5))   || (0!=memcmp(apdu+5,sc.buf,len-5) ))  {
 // 0x60 - wait next byte ....
  sc_read(&sc, 2+expected,400); //  one seconds expects data?
 if (sc.blen>=2) { // good one
-   if (logLevel>2) hex_dump("OK resp",sc.buf,sc.blen);
+//   if (logLevel>2) hex_dump("OK resp",sc.buf,sc.blen);
    sc.sw[0]=sc.buf[sc.blen-2];
    sc.sw[1]=sc.buf[sc.blen-1];
    sc.blen-=2; // remove them from result
    //memmove(sc.buf,sc.buf+2,sc.blen);
-   if (logLevel>1) hex_dump("SW",sc.sw,2);
+//   if (logLevel>1) hex_dump("SW",sc.sw,2);
    return 1;
   }
 else {
@@ -250,6 +251,8 @@ ICCID:8970039353468141118
 */
 
 int szapdu2(char *szapdu,int expected) {
+return scard_szapdu(&sc,szapdu,expected);
+/*
 char buf[256];
 
 // 01 21 51 97 11 68 11 11 90 00
@@ -259,6 +262,7 @@ char buf[256];
 //A0 A4 00 00 02
 int l = hexstr2bin(buf,szapdu,-1);
 apdu_send2(buf,l,expected);
+*/
 }
 
 int szapdu(char *szapdu) { return szapdu2(szapdu,1000);} // read all expected data
@@ -286,8 +290,8 @@ if (!sel_once) {
   }
 //printf(" --- select OK -----\n");
 
-if (0) { // one 16byte code encryption - can be up to 256 in total, ->? max?
-  szapdu2("008810011000112233445566778899AABBCCDDEEFF",1); // ?? encrypt 16 bytes??
+if (1) { // one 16byte code encryption - can be up to 256 in total, ->? max?
+  szapdu2("008810011000112233445566778899AABBCCDDEEFF",0); // ?? encrypt 16 bytes??
   // expect 10 bytes in aout 606110
   szapdu2("00C0000010",16); // get responce
   } else { // 32b
@@ -304,14 +308,14 @@ return sc.sw[0]=0x90 && sc.sw[1]==0x00; // done OK
 }
 
 int stress_test() {
-time_t now, rep;
+time_t strt, now, rep;
 int cnt = 0, sec=0;
-time(&now); rep = now;
+time(&now); strt = rep = now;
 printf("Start stress test now\n");
 while( cnt< 1000) {
    time(&now);
+   sec = (now-strt);
    if (now!=rep) {
-       sec++;
        printf("Done:  %d in %d sec,   avg=%0.2f pps  \r",cnt, sec,(cnt*1.0)/sec);
        fflush(stdout);
        rep = now;
@@ -363,18 +367,60 @@ if (!scard_imsi(s)) { //}, APDU_Cmd1, sizeof(APDU_Cmd1))) {
   }
 hexdump("IMSI OK",s->buf,s->blen); // print results
 
-
+//s->logLevel=5;
+ //read_me(); once
+ stress_test();
 
 prt_close( s->f);
 return 1;
 }
 
 
-int main() {
+int  do_cmd(scard *s,char *c) {
+if (lcmp(&c,"logLevel")) {
+  s->logLevel=atoi(c);
+  return 1;
+  }
+if (lcmp(&c,"exit")) {
+  s->eof=1;
+  return 1;
+  }
+int  ok = scard_szapdu(s,c,100); // till timeout
+  if (!ok) printf("ERR:%s\n",s->err);
+      else hex_dump("+OK, res:",s->buf,s->blen); // just print results
+return 1;
+}
+
+int main(int npar,char **par) {
+char *dev;
+scard *s = &sc;
+if (npar<2) {
+   fprintf(stderr,"usage: <dev> [command]\n");
+   return 1;
+   }
+dev = par[1];
+int ok,i;
+ok =  (dev[0]=='/')? scard_phoenix_open(s,dev) : scard_pcsc_open(s,dev);
+if (!ok) {
+  fprintf(stderr,"dev:%s open error:%s\n",dev,s->err);
+  return 2;
+  }
+//s->logLevel=5;
+for(i=2;i<npar;i++) do_cmd(s,par[i]);
+char buf[1024];
+while(!s->eof  && !feof(stdin)) {
+  buf[0]=0;
+  gets(buf);
+  //printf("<<<%s>>>\n",buf);
+  if (!buf[0]) break;
+  do_cmd(s,buf);
+  }
+return 0; // DONE
+
 return main2();
 
    int l;
-   char buf[256];
+//   char buf[256];
     f = prt_open("/dev/ttyUSB0",speed);
     if (!f) return 0; // no port
     prt_config_phoenix2( (int)f, speed);

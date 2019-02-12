@@ -3,7 +3,9 @@
 
 typedef struct _scard {
 
-   void *f; // usb-serial handle (on phoenix)
+   int logLevel ;
+
+   void *f;  int taCommand;  // usb-serial handle (on phoenix)
    void *hCard,*hContext; // PCSC
 
    int eof; // when fihished - card disconnected
@@ -18,6 +20,7 @@ typedef struct _scard {
 
 
 int scard_apdu(scard *, char *apdu, int len,int expected); // exchange apdu
+int scard_szapdu(scard *s, char *apdu, int expected); // convert string and run it
 
 
 // PSCS stuff

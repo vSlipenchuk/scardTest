@@ -1,6 +1,7 @@
 #include "scard.h"
 #include "../vos/vtypes.h"
 #include <stdarg.h>
+#include "coders.h"
 
 //**common scard utilites **//
 
@@ -8,9 +9,9 @@ int scard_errorf(scard *s, char *fmt, ...) { BUF_FMT(s->err,fmt); return 0; } //
 
 int scard_apdu(scard *s, char *apdu, int len,int expected) {
 if (!s->apdu) return scard_errorf(s,"apdu call undefined");
-hex_dump("SEND",apdu,len);
+if (s->logLevel>=3) hex_dump("APDU_SEND",apdu,len);
 int ok  = s->apdu(s,apdu,len,expected);
-hex_dump("RESP",s->buf,s->blen);
+if (s->logLevel>=3) hex_dump("APDU_RESP",s->buf,s->blen);
 return ok;
 }
 
@@ -38,4 +39,11 @@ return scard_select2(s,0x3F00) &&
        scard_select2(s,0x7F20) && // DF_GSM
        scard_select2(s,0x6F07) && // DF_IMSI
        scard_apdu(s,APDU_Cmd4,sizeof(APDU_Cmd4),9) ; // read bynary
+}
+
+
+int scard_szapdu(scard *s, char *szapdu,int expected) {
+char buf[256];
+int l = hexstr2bin(buf,szapdu,-1);
+return scard_apdu(s,buf,l,expected);
 }

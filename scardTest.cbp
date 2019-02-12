@@ -16,6 +16,7 @@
 					<Add option="-I ../vos" />
 					<Add option="-funsigned-char" />
 					<Add option="-I /usr/include/PCSC" />
+					<Add option="-funsigned-char" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
